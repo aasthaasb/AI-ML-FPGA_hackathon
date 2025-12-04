@@ -19,28 +19,32 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
+// Features:
+//  - Dynamic green time from ML level (0..3) via LUT
+//  - Yellow = fixed, All-Red = fixed
+//  - Minimum green enforced
+//  - Fail-safe mode when ML is stuck or manual fail-safe asserted
+
 
 module traffic_controller (
     input  wire        clk,
-    input  wire        rst,               // synchronous active-high reset
-    input  wire [1:0]  congestion_level,  // ML output 0..3
-    input  wire        fail_safe_en,      // manual fail-safe input
+    input  wire        rst,               
+    input  wire [1:0]  congestion_level,  
+    input  wire        fail_safe_en,     
 
-    output reg  [1:0]  active_phase,      // 0 = NS, 1 = EW
-    output reg         yellow,            // during yellow interval
-    output reg         all_red,           // during all-red interval
-    output reg         fail_safe_active,  // fail-safe mode
-    output reg [15:0]  green_time_ticks   // current green time 
+    output reg  [1:0]  active_phase,      
+    output reg         yellow,            
+    output reg         all_red,           
+    output reg         fail_safe_active,  
+    output reg [15:0]  green_time_ticks   
 );
 
-
-    localparam integer SCALE           = 10;   
+    localparam integer SCALE           = 10;   // 1 tick = (1 ms * SCALE)
     localparam integer YELLOW_TICKS    = (2000  / SCALE);  // 2s
     localparam integer ALLRED_TICKS    = (1000  / SCALE);  // 1s
     localparam integer FAILSAFE_TICKS  = (8000  / SCALE);  // 8s
     localparam integer MIN_GREEN_TICKS = (4000  / SCALE);  // 4s
 
-    // LUT
     reg [15:0] green_lut [0:3];
     initial begin
         green_lut[0] = (4000  / SCALE);  // level 0 -> 4s
@@ -49,7 +53,6 @@ module traffic_controller (
         green_lut[3] = (16000 / SCALE);  // level 3 ->16s
     end
 
-    // ----------------- FSM states -----------------
     localparam integer S_NS_GREEN  = 3'd0;
     localparam integer S_NS_YELLOW = 3'd1;
     localparam integer S_ALL_RED1  = 3'd2;
@@ -58,16 +61,25 @@ module traffic_controller (
     localparam integer S_ALL_RED2  = 3'd5;
 
     reg [2:0] state, next_state;
-
-    
     reg [31:0] timer;
 
-    // if ML  stucks
     reg [1:0] prev_level;
     reg [15:0] same_count;
     localparam integer STUCK_THRESH = 30; 
 
-    //ML stuck logic
+    initial begin
+        state = S_NS_GREEN;
+        next_state = S_NS_GREEN;
+        active_phase = 2'd0;
+        yellow = 1'b0;
+        all_red = 1'b0;
+        fail_safe_active = 1'b0;
+        green_time_ticks = MIN_GREEN_TICKS;
+        timer = 32'd0;
+        prev_level = 2'd0;
+        same_count = 16'd0;
+    end
+
     always @(posedge clk) begin
         if (rst) begin
             prev_level <= 2'd0;
@@ -88,7 +100,7 @@ module traffic_controller (
         end
     end
 
- 
+
     always @(posedge clk) begin
         if (rst) timer <= 32'd0;
         else if (timer > 0) timer <= timer - 1'b1;
@@ -107,7 +119,7 @@ module traffic_controller (
         endcase
     end
 
-    
+
     always @(posedge clk) begin
         if (rst) begin
             state <= S_NS_GREEN;
@@ -119,8 +131,8 @@ module traffic_controller (
         end else begin
             state <= next_state;
 
-            
-            yellow <= 1'b0;//by default
+
+            yellow <= 1'b0;
             all_red <= 1'b0;
 
             case (next_state)
