@@ -21,7 +21,7 @@ The ML model predicts congestion levels (0–3), which the FPGA uses to modify t
 
 ---
 
-##FPGA Architecture  
+## FPGA Architecture  
 Written in pure Verilog RTL.
 
 Components:
