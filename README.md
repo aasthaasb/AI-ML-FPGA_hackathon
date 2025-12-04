@@ -1,5 +1,4 @@
-# AI-ML-FPGA_hackathon
-AI-Driven Traffic Congestion Prediction &amp; FPGA Based Signal Controller
+
 # AI-Driven Traffic Congestion Prediction & FPGA-Based Adaptive Signal Controller  
 **Author:** Aastha Bhore, IIT Jodhpur  
 **Hackathon Project Repository**
